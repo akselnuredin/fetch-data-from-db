@@ -1,0 +1,99 @@
+---
+
+- name: Install Java OpenJDK
+  yum:
+    name: java-11-openjdk-devel
+    state: present
+
+- name: Check java version
+  command: java --version
+  register: version
+
+- debug: msg="{{ version.stdout }}"
+
+- name: Remove the user 'Tomcat' if exits.
+  user:
+    name: tomcat
+    state: absent
+    remove: yes
+
+- name: Add Tomcat user
+  command: useradd -r tomcat
+
+- name: Download Tomcat 9
+  get_url:
+    url: https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.53/bin/apache-tomcat-9.0.53.tar.gz
+    dest: /root
+
+- name: Extract Tomcat 9 
+  unarchive:
+    src: /root/apache-tomcat-9.0.53.tar.gz
+    dest: /root
+
+- name: Remove Tomcat tar.gz
+  file:
+    path: /root/apache-tomcat-9.0.53.tar.gz
+    state: absent
+
+- name: Create a directory if it does not exist
+  file:
+    path: /usr/local/tomcat9
+    state: directory
+    mode: '0755'
+
+- name: Copy files to /usr/local/tomcat9
+  synchronize:
+    src: /root/apache-tomcat-9.0.53/
+    dest: /usr/local/tomcat9
+
+- name: Change owner and group of TOMCAT9 dir.
+  file:
+    path: /usr/local/tomcat9
+    owner: tomcat
+    group: tomcat
+
+- name: Systemd template
+  template:
+    src: /root/fetch-data/roles/tomcat/templates/tomcat.service
+    dest: /etc/systemd/system/
+    remote_src: yes
+
+- name: Reload Systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Start Tomcat service and enable on boot.
+  become: yes
+  systemd:
+    name: tomcat.service
+    state: started
+    enabled: yes
+
+- name: Change admin password
+  template:
+    src: /root/fetch-data/roles/tomcat/templates/tomcat-users.xml
+    dest: /usr/local/tomcat9/conf/tomcat-users.xml
+    remote_src: yes
+
+- name: Allow access to the management web pages from the internet.
+  template:
+    src: /root/fetch-data/roles/tomcat/templates/context.xml
+    dest: /usr/local/tomcat9/webapps/host-manager/META-INF
+    remote_src: yes
+
+- name: Change 8080 port to 80.
+  template:
+    src: /root/fetch-data/roles/tomcat/templates/server.xml
+    dest: /usr/local/tomcat9/conf
+    remote_src: yes
+
+- name: Restart Tomcat
+  systemd:
+    name: tomcat.service
+    state: restarted
+
+- name: Copy App.war to tomcat
+  copy:
+    src: /root/fetch-data/roles/tomcat/files/App.war
+    dest: /usr/local/tomcat9/webapps
+    remote_src: yes

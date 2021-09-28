@@ -1,0 +1,1 @@
+INSERT INTO `tomcat_db`.`record` (`id`, `user_id`, `password`, `name`, `email`) VALUES ('1', 'aksel', 'passA', 'Aksel', 'aksel@nuredin.com');

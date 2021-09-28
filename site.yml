@@ -1,0 +1,38 @@
+---
+
+- hosts: db
+  become: yes
+
+  pre_tasks:
+
+    - name: Upgrade all packages.
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Start firewall and enable on boot.
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    - name: Open firewall port
+      firewalld:
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: yes
+      loop:
+        - 80/tcp
+        - 8080/tcp
+        - 443/tcp
+        - 3306/tcp
+
+    - name: Disable SELinux
+      selinux:
+        policy: targeted
+        state: permissive
+
+  roles:
+    - tomcat
+    - mysql
